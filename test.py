@@ -49,7 +49,7 @@ def dense_expectedstats(natparam):
   n = get_n(natparam)
   big_J, big_h = make_dense(natparam)
   big_Sigma = np.linalg.inv(big_J)
-  big_mu = np.dot(big_Sigma, big_h)
+  big_mu = np.matmul(big_Sigma, big_h[..., None])[..., 0]
 
   def stack_stats(t):
     start = t*n
@@ -57,8 +57,9 @@ def dense_expectedstats(natparam):
     Sigma = big_Sigma[..., start:stop, start:stop]
     mu = big_mu[..., start:stop][..., None]
     ExxT = Sigma + np.matmul(mu, T(mu))
-    out = vs(( hs(( ExxT,  mu,        )),
-               hs(( T(mu), np.eye(1), )), ))
+    one = np.ones(ExxT.shape[:-2] + (1, 1))
+    out = vs(( hs(( ExxT, mu,  )),
+              hs(( T(mu), one, )), ))
     if out.shape[-1] == 2*n+1:
       return out
     return node_to_pair(out)
@@ -71,7 +72,7 @@ if __name__ == '__main__':
   npr.seed(0)
 
   n = 2
-  natparam = rand_natparam(2, n)
+  natparam = rand_natparam(2, n, (1, 1))
 
   print expectedstats(natparam)
   print dense_expectedstats(natparam)
