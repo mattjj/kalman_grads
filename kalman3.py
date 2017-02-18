@@ -19,7 +19,7 @@ def schur_complement_vjp(Dbar, natparam):
   n = get_n(natparam)
   A, B, C = unpack(natparam)
   X = np.linalg.solve(sym(A), B)
-  _, I = np.broadcast_arrays(C, np.eye(n+1))
+  I = np.reshape(np.eye(n+1), X.shape[:-2] + (n+1, n+1))
   XI = vs(( X, -I ))
   return np.matmul(XI, np.matmul(Dbar, T(XI)))
 
@@ -91,11 +91,13 @@ def logZ_vjp(g, ans, vs, gvs, natparam):
   g_logZ, g_filter_natparam = g
   n = get_n(natparam)
   G = g_logZ * bottom_right_indicator(n+1)
-  g_natparam = np.zeros_like(natparam)
+  g_natparam = []
   for t in xrange(natparam.shape[-3] - 1, -1, -1):
-    G, out = add_node_potential_vjp(partial_marginalize_vjp(G, filter_natparam[..., t, :, :]))
-    g_natparam[..., t, :, :] += out
-  return g_natparam
+    G, out = add_node_potential_vjp(
+        g_filter_natparam[..., t, :, :] +
+        partial_marginalize_vjp(G, filter_natparam[..., t, :, :]))
+    g_natparam.append(out)
+  return np.stack(g_natparam, axis=-3)[..., ::-1, :, :]
 
 primitive_logZ.defvjp(logZ_vjp)
 primitive_logZ = return_first(primitive_logZ)
@@ -112,6 +114,10 @@ if __name__ == '__main__':
 
   ans1 = grad(primitive_logZ)(natparam)
   ans2 = dense_expectedstats(natparam)
+  print np.allclose(ans1, ans2)
+
+  ans1 = grad(lambda x: np.sum(np.sin(grad(primitive_logZ)(x))))(natparam)
+  ans2 = grad(lambda x: np.sum(np.sin(grad(logZ)(x))))(natparam)
   print np.allclose(ans1, ans2)
 
 # NOTES:
