@@ -59,7 +59,7 @@ def dense_expectedstats(natparam):
     ExxT = Sigma + np.matmul(mu, T(mu))
     one = np.ones(ExxT.shape[:-2] + (1, 1))
     out = vs(( hs(( ExxT, mu,  )),
-              hs(( T(mu), one, )), ))
+               hs(( T(mu), one, )), ))
     if out.shape[-1] == 2*n+1:
       return out
     return node_to_pair(out)
