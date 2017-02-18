@@ -42,7 +42,7 @@ def partial_marginalize(natparam):
 
 def partial_marginalize_vjp(Dbar, natparam):
   return schur_complement_vjp(Dbar, natparam) \
-      + -2*logdet_vjp(-1./2*Dbar[..., -1, -1], -2*natparam[..., :n, :n])
+      + -2*logdet_vjp(-1./2*Dbar[..., -1:, -1:], -2*natparam[..., :n, :n])
 
 def add_node_potential(node_potential, natparam):
   return natparam + node_to_pair(node_potential)
@@ -73,28 +73,42 @@ def logZ(natparam):
 def expectedstats(natparam):
   return grad(logZ)(natparam)
 
-def logZ_vjp(g, natparam):
-  # TODO this isn't right because we need to use the FILTERED natparams, which
-  # we don't have here...
+return_first = lambda fun: lambda *args, **kwargs: fun(*args, **kwargs)[0]
+
+@primitive
+def primitive_logZ(natparam):
   n = get_n(natparam)
-  G = g * bottom_right_indicator(n+1)
+  filter_natparam = np.zeros_like(natparam)
+  prediction_potential = np.zeros(natparam.shape[:-3] + (n+1, n+1))
+  for t in xrange(natparam.shape[-3]):
+    filter_natparam[..., t, :, :] = add_node_potential(
+        prediction_potential, natparam[..., t, :, :])
+    prediction_potential = partial_marginalize(filter_natparam[..., t, :, :])
+  return np.sum(prediction_potential[..., -1, -1]), filter_natparam
+
+def logZ_vjp(g, ans, vs, gvs, natparam):
+  _, filter_natparam = ans
+  g_logZ, g_filter_natparam = g
+  n = get_n(natparam)
+  G = g_logZ * bottom_right_indicator(n+1)
   g_natparam = np.zeros_like(natparam)
   for t in xrange(natparam.shape[-3] - 1, -1, -1):
-    G, out = add_node_potential_vjp(partial_marginalize_vjp(G, natparam[..., t, :, :]))
+    G, out = add_node_potential_vjp(partial_marginalize_vjp(G, filter_natparam[..., t, :, :]))
     g_natparam[..., t, :, :] += out
   return g_natparam
+
+primitive_logZ.defvjp(logZ_vjp)
+primitive_logZ = return_first(primitive_logZ)
 
 
 if __name__ == '__main__':
   npr.seed(0)
 
   n = 2
-  natparam = rand_natparam(2, n)[-1:]  # they are same if we only use last elt
+  natparam = rand_natparam(3, n)
 
-  ans1 = expectedstats(natparam)
+  ans1 = grad(primitive_logZ)(natparam)
   ans2 = dense_expectedstats(natparam)
-  print np.allclose(ans1, ans2)
-
   print ans1
   print ans2
-  print logZ_vjp(1., natparam)
+  print np.allclose(ans1, ans2)
