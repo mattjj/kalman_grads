@@ -100,15 +100,21 @@ def logZ_vjp(g, ans, vs, gvs, natparam):
 primitive_logZ.defvjp(logZ_vjp)
 primitive_logZ = return_first(primitive_logZ)
 
-
 if __name__ == '__main__':
   npr.seed(0)
 
   n = 2
   natparam = rand_natparam(3, n)
 
+  ans1 = logZ(natparam)
+  ans2 = primitive_logZ(natparam)
+  print np.allclose(ans1, ans2)
+
   ans1 = grad(primitive_logZ)(natparam)
   ans2 = dense_expectedstats(natparam)
-  print ans1
-  print ans2
   print np.allclose(ans1, ans2)
+
+# NOTES:
+# - could save these from forward pass:
+#   - A^{-1} (or L = chol(A) if we only want to do solves)
+#   - A^{-1} B
