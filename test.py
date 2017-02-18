@@ -64,7 +64,7 @@ def dense_expectedstats(natparam):
       return out
     return node_to_pair(out)
 
-  return np.stack([stack_stats(t) for t in xrange(natparam.shape[-3])])
+  return np.stack([stack_stats(t) for t in xrange(natparam.shape[-3])], axis=-3)
 
 ### script
 
@@ -74,5 +74,8 @@ if __name__ == '__main__':
   n = 2
   natparam = rand_natparam(2, n, (1, 1))
 
-  print expectedstats(natparam)
-  print dense_expectedstats(natparam)
+  ans1 = expectedstats(natparam)
+  ans2 = dense_expectedstats(natparam)
+  print ans1
+  print ans2
+  print np.allclose(ans1, ans2)
