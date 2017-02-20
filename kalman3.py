@@ -251,12 +251,12 @@ if __name__ == '__main__':
 
   # vjp wrt arg 0 of vjp
   ans1 = grad(scalar2(partial_marginalize_vjp), 0)(test1, natparam)
-  ans2, _ = schur_complement_vjp_vjp(test2, test1, natparam)
+  ans2, _ = partial_marginalize_vjp_vjp(test2, test1, natparam)
   print np.allclose(ans1, ans2)
 
   # vjp wrt arg 1 of vjp
   ans1 = grad(scalar2(partial_marginalize_vjp), 1)(test1, natparam)
-  _, ans2 = schur_complement_vjp_vjp(test2, test1, natparam)
+  _, ans2 = partial_marginalize_vjp_vjp(test2, test1, natparam)
   print np.allclose(ans1, ans2)
 
   ### testing kalman filter vjp's and vjp vjp's
