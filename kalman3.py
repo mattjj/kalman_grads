@@ -132,7 +132,6 @@ def kalman_filter_vjp_vjp(g, ans, args):
   gg_natparam, gg_prediction_potential = g
   g_natparam, g_prediction_potential = ans
   _, (_, filter_natparam) = args
-
   gg_prediction_potential = np.copy(gg_prediction_potential)
   g_filter_natparam = np.zeros_like(filter_natparam)
   gg_filter_natparam = np.zeros_like(filter_natparam)
@@ -141,7 +140,7 @@ def kalman_filter_vjp_vjp(g, ans, args):
         add_node_potential(gg_prediction_potential[..., t, :, :], gg_natparam[..., t, :, :])
     out, g_filter_natparam[..., t, :, :] = partial_marginalize_vjp_vjp(
             gg_filter_natparam[..., t, :, :],
-            g_prediction_potential[..., t, :, :], filter_natparam[..., t, :, :])
+            g_prediction_potential[..., t+1, :, :], filter_natparam[..., t, :, :])
     gg_prediction_potential[..., t+1, :, :] += out
   gg_logZ = gg_prediction_potential[..., -1, -1, -1]
 
@@ -256,15 +255,13 @@ if __name__ == '__main__':
   ans2 = primitive_logZ(natparam)
   print np.allclose(ans1, ans2)
 
-  # ans1 = grad(primitive_logZ)(natparam)
-  # ans2 = dense_expectedstats(natparam)
-  # print np.allclose(ans1, ans2)
+  ans1 = grad(primitive_logZ)(natparam)
+  ans2 = dense_expectedstats(natparam)
+  print np.allclose(ans1, ans2)
 
-  # ans1 = grad(lambda x: np.sum(np.sin(grad(primitive_logZ)(x))))(natparam)
-  # ans2 = grad(lambda x: np.sum(np.sin(grad(logZ)(x))))(natparam)
-  # print ans1
-  # print ans2
-  # print np.allclose(ans1, ans2)
+  ans1 = grad(lambda x: np.sum(np.sin(grad(primitive_logZ)(x))))(natparam)
+  ans2 = grad(lambda x: np.sum(np.sin(grad(logZ)(x))))(natparam)
+  print np.allclose(ans1, ans2)
 
 # NOTES:
 # - some of this code assumes incoming grads are symmetric
