@@ -107,9 +107,7 @@ def partial_marginalize_hvp_natparam(Ebar, E, vs, gvs, Dbar, D, vs2, gvs2, natpa
 
 @primitive
 def partial_marginalize_hvp_D(Ebar, E, vs, gvs, Dbar, D, vs2, gvs2, natparam):
-  # NOTE I don't think we need to implement this, I'm surprised that autograd is
-  # calling it. We could track progenitors a little more carefully.
-  # Do we ever need it?
+  # TODO why does this work when returning zero?
   return np.zeros_like(Dbar)
 
 primitive_partial_marginalize = primitive(partial_marginalize)

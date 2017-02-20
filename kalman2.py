@@ -108,19 +108,17 @@ if __name__ == '__main__':
   n = 2
   natparam = rand_natparam(3, n)
 
+  # vals
   ans1 = logZ(natparam)
   ans2 = primitive_logZ(natparam)
   print np.allclose(ans1, ans2)
 
+  # grads
   ans1 = grad(primitive_logZ)(natparam)
   ans2 = dense_expectedstats(natparam)
   print np.allclose(ans1, ans2)
 
+  # hessian-vector products
   ans1 = grad(lambda x: np.sum(np.sin(grad(primitive_logZ)(x))))(natparam)
   ans2 = grad(lambda x: np.sum(np.sin(grad(logZ)(x))))(natparam)
   print np.allclose(ans1, ans2)
-
-# NOTES:
-# - could save these from forward pass:
-#   - A^{-1} (or L = chol(A) if we only want to do solves)
-#   - A^{-1} B
