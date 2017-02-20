@@ -10,6 +10,7 @@ from autograd.container_types import make_tuple
 from util import T, get_n, unpack, bottom_right_indicator, sym, vs
 from test import rand_natparam, dense_expectedstats, \
     rand_pair_potential, rand_node_potential, rand_psd
+from kalman import logZ, expectedstats
 
 ### numerical util
 
@@ -93,20 +94,7 @@ def node_to_pair_vjp(G):
   I = np.delete(np.eye(2*n+1), slice(n, 2*n), axis=0)
   return np.matmul(I, np.matmul(G, I.T))
 
-### kalman smoother
-
-def logZ(natparam):
-  n = get_n(natparam)
-  prediction_potential = np.zeros(natparam.shape[:-3] + (n+1, n+1))
-  for t in xrange(natparam.shape[-3]):
-    prediction_potential = partial_marginalize(
-        add_node_potential(prediction_potential, natparam[..., t, :, :]))
-  return np.sum(prediction_potential[..., -1, -1])
-
-def expectedstats(natparam):
-  return grad(logZ)(natparam)
-
-###
+### kalman filter, its vjp, and its vjp's vjp as primitives
 
 def primitive_logZ(natparam):
   logZ, filter_natparam = kalman_filter(natparam)
