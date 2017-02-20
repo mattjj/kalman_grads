@@ -58,8 +58,8 @@ def logdet_vjp_vjp(h, g, A):
 def partial_marginalize(natparam):
   n = get_n(natparam)
   D = schur_complement(natparam)
-  norm = -1./2 * logdet(-2*natparam[..., :n, :n]) + n/2. * np.log(2*np.pi)
-  return D + bottom_right_indicator(n+1) * norm[..., None, None]
+  norm = 1./2 * logdet(-2*natparam[..., :n, :n]) + n/2. * np.log(2*np.pi)
+  return D - bottom_right_indicator(n+1) * norm[..., None, None]
 
 def partial_marginalize_vjp(Dbar, natparam):
   n = get_n(natparam)
@@ -247,14 +247,14 @@ if __name__ == '__main__':
   _, ans2 = partial_marginalize_vjp_vjp(test2, test1, natparam)
   print np.allclose(ans1, ans2)
 
-  ### testing kalman filter vjp's and vjp vjp's
-  # npr.seed(0)
-  # n = 2
-  # natparam = rand_natparam(1, n)
+  ### testing kalman filter, its vjp, and its vjp's vjp
+  npr.seed(0)
+  n = 2
+  natparam = rand_natparam(1, n)
 
-  # ans1 = logZ(natparam)
-  # ans2 = primitive_logZ(natparam)
-  # print np.allclose(ans1, ans2)
+  ans1 = logZ(natparam)
+  ans2 = primitive_logZ(natparam)
+  print np.allclose(ans1, ans2)
 
   # ans1 = grad(primitive_logZ)(natparam)
   # ans2 = dense_expectedstats(natparam)
