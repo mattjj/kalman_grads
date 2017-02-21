@@ -97,8 +97,7 @@ def node_to_pair_vjp(G):
 ### kalman filter, its vjp, and its vjp's vjp as primitives
 
 def primitive_logZ(natparam):
-  logZ, filter_natparam = kalman_filter(natparam)
-  return logZ
+  return kalman_filter(natparam)[0]
 
 @primitive
 def kalman_filter(natparam):
@@ -266,8 +265,7 @@ if __name__ == '__main__':
   ### testing kalman filter, its vjp, and its vjp's vjp
   npr.seed(0)
   n = 2
-  _T = 3
-  natparam = rand_natparam(_T, n)
+  natparam = rand_natparam(3, n)
 
   ans1 = logZ(natparam)
   ans2 = primitive_logZ(natparam)
@@ -284,8 +282,7 @@ if __name__ == '__main__':
   ### sampling
   npr.seed(0)
   n = 2
-  _T = 1
-  natparam = rand_natparam(_T, n)
+  natparam = rand_natparam(1, n)
 
   # TODO write a proper dense sample function
   print natural_sample(natparam, rng=npr.RandomState(0))
