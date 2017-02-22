@@ -281,7 +281,6 @@ if __name__ == '__main__':
   npr.seed(0)
   n = 2
   natparam = rand_natparam(10, n)
-  natparam[..., :-1, -1] = natparam[..., -1, :-1] = 0.  # zero mean
 
   ans1 = natural_sample(natparam, npr=npr.RandomState(0))
   ans2 = np.squeeze(sample_backward(kalman_filter(natparam)[1], npr=npr.RandomState(0)))
