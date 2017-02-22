@@ -154,143 +154,140 @@ def natural_sample(natparam, npr=npr.RandomState(0)):
     def helper(natparam):
         logZ, filter_natparam = kalman_filter(natparam)
         h = filter_natparam[..., :n, -1] + filter_natparam[..., -1, :n]
-        L = np.linalg.cholesky(-2.*filter_natparam[..., :n, :n])
-        L = np.concatenate((L[..., :-1, :, :], np.linalg.inv(T(L[..., -1:, :, :]))), axis=-3)
+        L = T(np.linalg.inv(np.linalg.cholesky(-2.*filter_natparam[..., :n, :n])))
         eps = np.matmul(L, npr.normal(size=natparam.shape[:-2] + (n, 1)))
-        # eps = np.linalg.solve(T(L), npr.normal(size=natparam.shape[:-2] + (n, 1)))
         return logZ + np.dot(np.ravel(h), np.ravel(eps))
     return grad(helper)(natparam)[..., :n, -1]
 
 
 if __name__ == '__main__':
-  ### testing numerical util and vjp functions
+  # ### testing numerical util and vjp functions
 
-  ## schur complement
-  # setup
-  npr.seed(0)
-  n = 2
-  natparam = rand_pair_potential(n)
+  # ## schur complement
+  # # setup
+  # npr.seed(0)
+  # n = 2
+  # natparam = rand_pair_potential(n)
 
-  test1 = rand_node_potential(n)
-  test2 = rand_pair_potential(n)
-  to_scalar = lambda test: lambda fun: lambda *args: np.dot(np.ravel(fun(*args)), np.ravel(test))
-  scalar1 = to_scalar(test1)
-  scalar2 = to_scalar(test2)
+  # test1 = rand_node_potential(n)
+  # test2 = rand_pair_potential(n)
+  # to_scalar = lambda test: lambda fun: lambda *args: np.dot(np.ravel(fun(*args)), np.ravel(test))
+  # scalar1 = to_scalar(test1)
+  # scalar2 = to_scalar(test2)
 
-  # vjp
-  ans1 = grad(scalar1(schur_complement))(natparam)
-  ans2 = schur_complement_vjp(test1, natparam)
-  print np.allclose(ans1, ans2)
+  # # vjp
+  # ans1 = grad(scalar1(schur_complement))(natparam)
+  # ans2 = schur_complement_vjp(test1, natparam)
+  # print np.allclose(ans1, ans2)
 
-  # hvp
-  ans1 = grad(scalar2(grad(scalar1(schur_complement))))(natparam)
-  _, ans2 = schur_complement_vjp_vjp(test2, test1, natparam)
-  print np.allclose(ans1, ans2)
+  # # hvp
+  # ans1 = grad(scalar2(grad(scalar1(schur_complement))))(natparam)
+  # _, ans2 = schur_complement_vjp_vjp(test2, test1, natparam)
+  # print np.allclose(ans1, ans2)
 
-  # vjp wrt arg 0 of vjp
-  ans1 = grad(scalar2(schur_complement_vjp), 0)(test1, natparam)
-  ans2, _ = schur_complement_vjp_vjp(test2, test1, natparam)
-  print np.allclose(ans1, ans2)
+  # # vjp wrt arg 0 of vjp
+  # ans1 = grad(scalar2(schur_complement_vjp), 0)(test1, natparam)
+  # ans2, _ = schur_complement_vjp_vjp(test2, test1, natparam)
+  # print np.allclose(ans1, ans2)
 
-  # vjp wrt arg 1 of vjp
-  ans1 = grad(scalar2(schur_complement_vjp), 1)(test1, natparam)
-  _, ans2 = schur_complement_vjp_vjp(test2, test1, natparam)
-  print np.allclose(ans1, ans2)
+  # # vjp wrt arg 1 of vjp
+  # ans1 = grad(scalar2(schur_complement_vjp), 1)(test1, natparam)
+  # _, ans2 = schur_complement_vjp_vjp(test2, test1, natparam)
+  # print np.allclose(ans1, ans2)
 
-  ## logdet
-  # setup
-  npr.seed(0)
-  n = 2
-  natparam = rand_psd(n)
+  # ## logdet
+  # # setup
+  # npr.seed(0)
+  # n = 2
+  # natparam = rand_psd(n)
 
-  scale = npr.randn()
-  test = rand_psd(n)
-  scalar = lambda fun: lambda *args: np.dot(np.ravel(fun(*args)), np.ravel(test))
+  # scale = npr.randn()
+  # test = rand_psd(n)
+  # scalar = lambda fun: lambda *args: np.dot(np.ravel(fun(*args)), np.ravel(test))
 
-  # vjp
-  ans1 = grad(lambda x: scale * logdet(x))(natparam)
-  ans2 = logdet_vjp(scale, natparam)
-  print np.allclose(ans1, ans2)
+  # # vjp
+  # ans1 = grad(lambda x: scale * logdet(x))(natparam)
+  # ans2 = logdet_vjp(scale, natparam)
+  # print np.allclose(ans1, ans2)
 
-  # hvp
-  ans1 = grad(scalar(grad(lambda x: scale * logdet(x))))(natparam)
-  _, ans2 = logdet_vjp_vjp(test, scale, natparam)
-  print np.allclose(ans1, ans2)
+  # # hvp
+  # ans1 = grad(scalar(grad(lambda x: scale * logdet(x))))(natparam)
+  # _, ans2 = logdet_vjp_vjp(test, scale, natparam)
+  # print np.allclose(ans1, ans2)
 
-  # vjp wrt arg 0 of vjp
-  ans1 = grad(scalar(logdet_vjp), 0)(scale, natparam)
-  ans2, _ = logdet_vjp_vjp(test, scale, natparam)
-  print np.allclose(ans1, ans2)
+  # # vjp wrt arg 0 of vjp
+  # ans1 = grad(scalar(logdet_vjp), 0)(scale, natparam)
+  # ans2, _ = logdet_vjp_vjp(test, scale, natparam)
+  # print np.allclose(ans1, ans2)
 
-  # vjp wrt arg 1 of vjp
-  ans1 = grad(scalar(logdet_vjp), 1)(scale, natparam)
-  _, ans2 = logdet_vjp_vjp(test, scale, natparam)
-  print np.allclose(ans1, ans2)
+  # # vjp wrt arg 1 of vjp
+  # ans1 = grad(scalar(logdet_vjp), 1)(scale, natparam)
+  # _, ans2 = logdet_vjp_vjp(test, scale, natparam)
+  # print np.allclose(ans1, ans2)
 
-  ### testing kalman primitives
-  ## setup
-  npr.seed(0)
-  n = 2
-  natparam = rand_pair_potential(n)
+  # ### testing kalman primitives
+  # ## setup
+  # npr.seed(0)
+  # n = 2
+  # natparam = rand_pair_potential(n)
 
-  test1 = rand_node_potential(n)
-  test2 = rand_pair_potential(n)
-  to_scalar = lambda test: lambda fun: lambda *args: np.dot(np.ravel(fun(*args)), np.ravel(test))
-  scalar1 = to_scalar(test1)
-  scalar2 = to_scalar(test2)
+  # test1 = rand_node_potential(n)
+  # test2 = rand_pair_potential(n)
+  # to_scalar = lambda test: lambda fun: lambda *args: np.dot(np.ravel(fun(*args)), np.ravel(test))
+  # scalar1 = to_scalar(test1)
+  # scalar2 = to_scalar(test2)
 
-  # val
-  ans1 = partial_marginalize(natparam)
+  # # val
+  # ans1 = partial_marginalize(natparam)
 
-  # vjp
-  ans1 = grad(scalar1(partial_marginalize))(natparam)
-  ans2 = partial_marginalize_vjp(test1, natparam)
-  print np.allclose(ans1, ans2)
+  # # vjp
+  # ans1 = grad(scalar1(partial_marginalize))(natparam)
+  # ans2 = partial_marginalize_vjp(test1, natparam)
+  # print np.allclose(ans1, ans2)
 
-  # hvp
-  ans1 = grad(scalar2(grad(scalar1(partial_marginalize))))(natparam)
-  _, ans2 = partial_marginalize_vjp_vjp(test2, test1, natparam)
-  print np.allclose(ans1, ans2)
+  # # hvp
+  # ans1 = grad(scalar2(grad(scalar1(partial_marginalize))))(natparam)
+  # _, ans2 = partial_marginalize_vjp_vjp(test2, test1, natparam)
+  # print np.allclose(ans1, ans2)
 
-  # vjp wrt arg 0 of vjp
-  ans1 = grad(scalar2(partial_marginalize_vjp), 0)(test1, natparam)
-  ans2, _ = partial_marginalize_vjp_vjp(test2, test1, natparam)
-  print np.allclose(ans1, ans2)
+  # # vjp wrt arg 0 of vjp
+  # ans1 = grad(scalar2(partial_marginalize_vjp), 0)(test1, natparam)
+  # ans2, _ = partial_marginalize_vjp_vjp(test2, test1, natparam)
+  # print np.allclose(ans1, ans2)
 
-  # vjp wrt arg 1 of vjp
-  ans1 = grad(scalar2(partial_marginalize_vjp), 1)(test1, natparam)
-  _, ans2 = partial_marginalize_vjp_vjp(test2, test1, natparam)
-  print np.allclose(ans1, ans2)
+  # # vjp wrt arg 1 of vjp
+  # ans1 = grad(scalar2(partial_marginalize_vjp), 1)(test1, natparam)
+  # _, ans2 = partial_marginalize_vjp_vjp(test2, test1, natparam)
+  # print np.allclose(ans1, ans2)
 
-  ### testing kalman filter, its vjp, and its vjp's vjp
-  npr.seed(0)
-  n = 2
-  natparam = rand_natparam(3, n)
+  # ### testing kalman filter, its vjp, and its vjp's vjp
+  # npr.seed(0)
+  # n = 2
+  # natparam = rand_natparam(3, n)
 
-  ans1 = logZ(natparam)
-  ans2 = primitive_logZ(natparam)
-  print np.allclose(ans1, ans2)
+  # ans1 = logZ(natparam)
+  # ans2 = primitive_logZ(natparam)
+  # print np.allclose(ans1, ans2)
 
-  ans1 = grad(primitive_logZ)(natparam)
-  ans2 = dense_expectedstats(natparam)
-  print np.allclose(ans1, ans2)
+  # ans1 = grad(primitive_logZ)(natparam)
+  # ans2 = dense_expectedstats(natparam)
+  # print np.allclose(ans1, ans2)
 
-  ans1 = grad(lambda x: np.sum(np.sin(grad(primitive_logZ)(x))))(natparam)
-  ans2 = grad(lambda x: np.sum(np.sin(grad(logZ)(x))))(natparam)
-  print np.allclose(ans1, ans2)
+  # ans1 = grad(lambda x: np.sum(np.sin(grad(primitive_logZ)(x))))(natparam)
+  # ans2 = grad(lambda x: np.sum(np.sin(grad(logZ)(x))))(natparam)
+  # print np.allclose(ans1, ans2)
 
   ### sampling
   npr.seed(0)
   n = 2
-  natparam = rand_natparam(1, n)
+  natparam = rand_natparam(10, n)
+  natparam[..., :-1, -1] = natparam[..., -1, :-1] = 0.  # zero mean
 
-  # TODO write a proper dense sample function
-  print natural_sample(natparam, npr=npr.RandomState(0))
-  mu = np.linalg.solve(-2*natparam[-1, :n, :n], 2*natparam[-1, :n, -1])
-  L = np.linalg.cholesky(-2*natparam[-1, :n, :n])
-  print mu + np.linalg.solve(L.T, npr.RandomState(0).randn(n))
-
-  print sample_backward(kalman_filter(natparam)[1], npr=npr.RandomState(0))
+  ans1 = natural_sample(natparam, npr=npr.RandomState(0))
+  ans2 = np.squeeze(sample_backward(kalman_filter(natparam)[1], npr=npr.RandomState(0)))
+  print ans1
+  print ans2
+  print '\n'.join(map(str, np.isclose(ans1, ans2).all(1)))
 
 # NOTES:
 # - some of this code probably assumes incoming grads are symmetric
