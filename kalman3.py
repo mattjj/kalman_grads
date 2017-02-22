@@ -154,8 +154,8 @@ def natural_sample(natparam, npr=npr.RandomState(0)):
     def helper(natparam):
         logZ, filter_natparam = kalman_filter(natparam)
         h = filter_natparam[..., :n, -1] + filter_natparam[..., -1, :n]
-        L = T(np.linalg.inv(np.linalg.cholesky(-2.*filter_natparam[..., :n, :n])))
-        eps = np.matmul(L, npr.normal(size=natparam.shape[:-2] + (n, 1)))
+        L = T(np.linalg.cholesky(-2.*filter_natparam[..., :n, :n]))
+        eps = np.linalg.solve(L, npr.normal(size=natparam.shape[:-2] + (n, 1)))
         return logZ + np.dot(np.ravel(h), np.ravel(eps))
     return grad(helper)(natparam)[..., :n, -1]
 
