@@ -9,7 +9,7 @@ from autograd.container_types import make_tuple
 
 from util import T, get_n, unpack, bottom_right_indicator, sym, vs
 from test import rand_natparam, dense_expectedstats, \
-    rand_pair_potential, rand_node_potential, rand_psd
+    rand_pair_potential, rand_node_potential, rand_psd, sample_backward
 from kalman import logZ, expectedstats
 
 ### numerical util
@@ -149,15 +149,15 @@ kalman_filter_vjp.defvjp(lambda g, ans, vs, gvs, args: kalman_filter_vjp_vjp(g, 
 
 ### sampling
 
-def natural_sample(natparam, rng=npr.RandomState(0)):
+def natural_sample(natparam, npr=npr.RandomState(0)):
     n = get_n(natparam)
     def helper(natparam):
         logZ, filter_natparam = kalman_filter(natparam)
-        h = -(filter_natparam[..., :n, -1] + filter_natparam[..., -1, :n])
+        h = filter_natparam[..., :n, -1] + filter_natparam[..., -1, :n]
         L = np.linalg.cholesky(-2.*filter_natparam[..., :n, :n])
         L = np.concatenate((L[..., :-1, :, :], np.linalg.inv(T(L[..., -1:, :, :]))), axis=-3)
-        eps = np.matmul(L, rng.normal(size=natparam.shape[:-2] + (n, 1)))
-        # eps = np.linalg.solve(T(L), rng.normal(size=natparam.shape[:-2] + (n, 1)))
+        eps = np.matmul(L, npr.normal(size=natparam.shape[:-2] + (n, 1)))
+        # eps = np.linalg.solve(T(L), npr.normal(size=natparam.shape[:-2] + (n, 1)))
         return logZ + np.dot(np.ravel(h), np.ravel(eps))
     return grad(helper)(natparam)[..., :n, -1]
 
@@ -285,10 +285,12 @@ if __name__ == '__main__':
   natparam = rand_natparam(1, n)
 
   # TODO write a proper dense sample function
-  print natural_sample(natparam, rng=npr.RandomState(0))
+  print natural_sample(natparam, npr=npr.RandomState(0))
   mu = np.linalg.solve(-2*natparam[-1, :n, :n], 2*natparam[-1, :n, -1])
   L = np.linalg.cholesky(-2*natparam[-1, :n, :n])
-  print mu + np.linalg.solve(L.T, -npr.RandomState(0).randn(n))
+  print mu + np.linalg.solve(L.T, npr.RandomState(0).randn(n))
+
+  print sample_backward(kalman_filter(natparam)[1], npr=npr.RandomState(0))
 
 # NOTES:
 # - some of this code probably assumes incoming grads are symmetric

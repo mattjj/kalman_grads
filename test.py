@@ -61,6 +61,20 @@ def dense_expectedstats(natparam):
 
   return np.stack([stack_stats(t) for t in xrange(natparam.shape[-3])], axis=-3)
 
+def cond_sample(natparam, eps, x2_sample):
+  n = get_n(natparam)
+  J11, J12, h1 = -2*natparam[..., :n, :n], -2*natparam[..., :n, n:2*n], 2*natparam[..., :n, -1:]
+  L = np.linalg.cholesky(J11)
+  return np.linalg.solve(J11, h1 + np.matmul(L, eps) - np.matmul(J12, x2_sample))
+
+def sample_backward(filter_natparam, npr=npr.RandomState(0)):
+  T, n = filter_natparam.shape[-3], get_n(filter_natparam)
+  eps = npr.normal(size=filter_natparam.shape[:-2] + (n, 1))
+  samples = [eps[..., -1, :, :]]
+  for t in xrange(T-1, -1, -1):
+    samples.append(cond_sample(filter_natparam[..., t, :, :], eps[..., t, :, :], samples[-1]))
+  return np.stack(samples[1:][::-1], axis=-3)
+
 ### script
 
 if __name__ == '__main__':
