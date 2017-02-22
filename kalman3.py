@@ -57,7 +57,10 @@ def logdet_vjp_vjp(h, g, A):
 
 def partial_marginalize(natparam):
   n = get_n(natparam)
+  assert np.all(np.linalg.eigvals(natparam) <= 0.)
+  assert np.all(np.linalg.eigvals(natparam[..., :n, :n]) <= 0.)
   D = schur_complement(natparam)
+  assert np.all(np.linalg.eigvals(D) <= 0.)
   norm = 1./2 * logdet(-2*natparam[..., :n, :n]) + n/2. * np.log(2*np.pi)
   return D - bottom_right_indicator(n+1) * norm[..., None, None]
 
@@ -148,6 +151,18 @@ def kalman_filter_vjp_vjp(g, ans, args):
   return g_args
 kalman_filter_vjp.defvjp(lambda g, ans, vs, gvs, args: kalman_filter_vjp_vjp(g, ans, args))
 
+### sampling
+
+def natural_sample(natparam):
+    n = get_n(natparam)
+    def helper(natparam):
+        logZ, filter_natparam = kalman_filter(natparam)
+        h = 0.5 * (filter_natparam[..., :n, -1] + filter_natparam[..., -1, :n])
+        L = np.linalg.cholesky(-2.*filter_natparam[..., :n, :n])
+        eps = np.matmul(L, npr.normal(size=natparam.shape[:-2] + (n, 1)))
+        return logZ + np.dot(np.ravel(h), np.ravel(eps))
+    return grad(helper)(natparam)[..., :n, -1]
+
 
 if __name__ == '__main__':
   ### testing numerical util and vjp functions
@@ -226,6 +241,9 @@ if __name__ == '__main__':
   scalar1 = to_scalar(test1)
   scalar2 = to_scalar(test2)
 
+  # val
+  ans1 = partial_marginalize(natparam)
+
   # vjp
   ans1 = grad(scalar1(partial_marginalize))(natparam)
   ans2 = partial_marginalize_vjp(test1, natparam)
@@ -249,7 +267,8 @@ if __name__ == '__main__':
   ### testing kalman filter, its vjp, and its vjp's vjp
   npr.seed(0)
   n = 2
-  natparam = rand_natparam(1, n)
+  _T = 3
+  natparam = rand_natparam(_T, n)
 
   ans1 = logZ(natparam)
   ans2 = primitive_logZ(natparam)
@@ -263,13 +282,18 @@ if __name__ == '__main__':
   ans2 = grad(lambda x: np.sum(np.sin(grad(logZ)(x))))(natparam)
   print np.allclose(ans1, ans2)
 
+  # ### sampling
+  # npr.seed(0)
+  # n = 2
+  # _T = 3
+  # natparam = rand_natparam(_T, n)
+
+  # print natural_sample(natparam)
+
 # NOTES:
-# - some of this code assumes incoming grads are symmetric
+# - some of this code probably assumes incoming grads are symmetric
 # - could save these from forward pass:
 #     - A^{-1} (or L = chol(A) if we only want to do solves)
 #     - A^{-1} B
 #   basically compute all that stuff up front, then everything else is matmuls
 #   and adds
-# - this Dbarbar thing is about treating it like an independent variable. but
-#   it's not independent: it's fully determined by natparam. basically calling
-#   grad(schur_complement_vjp)

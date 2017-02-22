@@ -2,15 +2,19 @@ from __future__ import division
 import numpy as np
 import numpy.random as npr
 
-from util import T, vs, hs, get_n, rand_psd
+from util import T, vs, hs, get_n, rand_psd, unpack
 from kalman import expectedstats, node_to_pair
 
 ### testing util
 
 def rand_pair_potential(n):
-  J11, J12, J22 = rand_psd(n), npr.randn(n,  n), rand_psd(n)
-  h1, h2 = npr.randn(n, 1), npr.randn(n, 1)
-  const = npr.randn(1, 1)
+  J = rand_psd(2*n)
+  h = npr.randn(2*n, 1)
+
+  J11, J12, J22 = J[:n, :n], J[:n, n:], J[n:, n:]
+  h1, h2 = h[:n], h[n:]
+
+  const = npr.rand() + np.dot(h.T, np.linalg.solve(J, h))
   return -1./2 * vs(( hs(( J11,    J12,   -h1,   )),
                       hs(( J12.T,  J22,   -h2,   )),
                       hs(( -h1.T,  -h2.T, const, )), ))
