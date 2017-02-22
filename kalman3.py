@@ -57,10 +57,7 @@ def logdet_vjp_vjp(h, g, A):
 
 def partial_marginalize(natparam):
   n = get_n(natparam)
-  assert np.all(np.linalg.eigvals(natparam) <= 0.)
-  assert np.all(np.linalg.eigvals(natparam[..., :n, :n]) <= 0.)
   D = schur_complement(natparam)
-  assert np.all(np.linalg.eigvals(D) <= 0.)
   norm = 1./2 * logdet(-2*natparam[..., :n, :n]) + n/2. * np.log(2*np.pi)
   return D - bottom_right_indicator(n+1) * norm[..., None, None]
 
@@ -282,13 +279,13 @@ if __name__ == '__main__':
   ans2 = grad(lambda x: np.sum(np.sin(grad(logZ)(x))))(natparam)
   print np.allclose(ans1, ans2)
 
-  # ### sampling
-  # npr.seed(0)
-  # n = 2
-  # _T = 3
-  # natparam = rand_natparam(_T, n)
+  ### sampling
+  npr.seed(0)
+  n = 2
+  _T = 3
+  natparam = rand_natparam(_T, n)
 
-  # print natural_sample(natparam)
+  print natural_sample(natparam)
 
 # NOTES:
 # - some of this code probably assumes incoming grads are symmetric

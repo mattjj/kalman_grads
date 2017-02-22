@@ -7,24 +7,15 @@ from kalman import expectedstats, node_to_pair
 
 ### testing util
 
-def rand_pair_potential(n):
-  J = rand_psd(2*n)
-  h = npr.randn(2*n, 1)
-
-  J11, J12, J22 = J[:n, :n], J[:n, n:], J[n:, n:]
-  h1, h2 = h[:n], h[n:]
-
-  const = npr.rand() + np.dot(h.T, np.linalg.solve(J, h))
-  return -1./2 * vs(( hs(( J11,    J12,   -h1,   )),
-                      hs(( J12.T,  J22,   -h2,   )),
-                      hs(( -h1.T,  -h2.T, const, )), ))
-
 def rand_node_potential(n):
   J = rand_psd(n)
   h = npr.randn(n, 1)
-  const = npr.randn(1, 1)
+  const = npr.rand() + np.dot(h.T, np.linalg.solve(J, h))
   return -1./2 * vs(( hs(( J,    -h,    )),
                       hs(( -h.T, const, )), ))
+
+def rand_pair_potential(n):
+  return rand_node_potential(2*n)
 
 def rand_lds_natparam(T, n):
   return np.stack([rand_pair_potential(n) for _ in xrange(T-1)]
