@@ -150,13 +150,14 @@ kalman_filter_vjp.defvjp(lambda g, ans, vs, gvs, args: kalman_filter_vjp_vjp(g, 
 
 ### sampling
 
-def natural_sample(natparam):
+def natural_sample(natparam, rng=npr.RandomState(0)):
     n = get_n(natparam)
     def helper(natparam):
         logZ, filter_natparam = kalman_filter(natparam)
-        h = 0.5 * (filter_natparam[..., :n, -1] + filter_natparam[..., -1, :n])
+        h = -(filter_natparam[..., :n, -1] + filter_natparam[..., -1, :n])
         L = np.linalg.cholesky(-2.*filter_natparam[..., :n, :n])
-        eps = np.matmul(L, npr.normal(size=natparam.shape[:-2] + (n, 1)))
+        # eps = np.matmul(L, rng.normal(size=natparam.shape[:-2] + (n, 1)))
+        eps = np.linalg.solve(T(L), rng.normal(size=natparam.shape[:-2] + (n, 1)))
         return logZ + np.dot(np.ravel(h), np.ravel(eps))
     return grad(helper)(natparam)[..., :n, -1]
 
@@ -282,10 +283,13 @@ if __name__ == '__main__':
   ### sampling
   npr.seed(0)
   n = 2
-  _T = 3
+  _T = 1
   natparam = rand_natparam(_T, n)
 
-  print natural_sample(natparam)
+  print natural_sample(natparam, rng=npr.RandomState(0))
+  mu = np.linalg.solve(-2*natparam[-1, :n, :n], 2*natparam[-1, :n, -1])
+  L = np.linalg.cholesky(-2*natparam[-1, :n, :n])
+  print mu + np.linalg.solve(L.T, -npr.RandomState(0).randn(n))
 
 # NOTES:
 # - some of this code probably assumes incoming grads are symmetric
