@@ -149,6 +149,8 @@ kalman_filter_vjp.defvjp(lambda g, ans, vs, gvs, args: kalman_filter_vjp_vjp(g, 
 
 ### sampling
 
+# TODO write this with an explicit call to kalman_filter_vjp, which will
+# hopefully handle broadcasting
 def natural_sample(natparam, npr=npr.RandomState(0)):
   n = get_n(natparam)
   def helper(natparam):
