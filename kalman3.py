@@ -5,12 +5,24 @@ from autograd import grad
 from autograd.core import primitive, getval
 from autograd.container_types import make_tuple
 
-# This file is like kalman.py except we mark some things as primitives.
+# This file is like kalman.py except we mark some things as primitives and
+# implement more vjp's manually.
 
-from util import T, get_n, unpack, bottom_right_indicator, sym, vs
+from util import T, get_n, unpack, unpack_asym, bottom_right_indicator, sym, vs
 from test import rand_natparam, dense_expectedstats, \
     rand_pair_potential, rand_node_potential, rand_psd, sample_backward
 from kalman import logZ, expectedstats
+
+# natural parameters might be stored symmetrically or asymmetrically. this code
+# supports either way, but read the tests to see when to re-symmetrize
+
+ASYMMETRIC_PARAMS = True
+
+if ASYMMETRIC_PARAMS:
+  unpack = unpack_asym
+  resym = sym
+else:
+  resym = lambda x: x
 
 ### numerical util
 
@@ -178,22 +190,22 @@ if __name__ == '__main__':
   # vjp
   ans1 = grad(scalar1(schur_complement))(natparam)
   ans2 = schur_complement_vjp(test1, natparam)
-  print np.allclose(ans1, ans2)
+  print np.allclose(resym(ans1), ans2)
 
   # hvp
   ans1 = grad(scalar2(grad(scalar1(schur_complement))))(natparam)
   _, ans2 = schur_complement_vjp_vjp(test2, test1, natparam)
-  print np.allclose(ans1, ans2)
+  print np.allclose(resym(ans1), ans2)
 
   # vjp wrt arg 0 of vjp
   ans1 = grad(scalar2(schur_complement_vjp), 0)(test1, natparam)
   ans2, _ = schur_complement_vjp_vjp(test2, test1, natparam)
-  print np.allclose(ans1, ans2)
+  print np.allclose(resym(ans1), ans2)
 
   # vjp wrt arg 1 of vjp
   ans1 = grad(scalar2(schur_complement_vjp), 1)(test1, natparam)
   _, ans2 = schur_complement_vjp_vjp(test2, test1, natparam)
-  print np.allclose(ans1, ans2)
+  print np.allclose(resym(ans1), ans2)
 
   ## logdet
   # setup
@@ -208,12 +220,12 @@ if __name__ == '__main__':
   # vjp
   ans1 = grad(lambda x: scale * logdet(x))(natparam)
   ans2 = logdet_vjp(scale, natparam)
-  print np.allclose(ans1, ans2)
+  print np.allclose(resym(ans1), ans2)
 
   # hvp
   ans1 = grad(scalar(grad(lambda x: scale * logdet(x))))(natparam)
   _, ans2 = logdet_vjp_vjp(test, scale, natparam)
-  print np.allclose(ans1, ans2)
+  print np.allclose(resym(ans1), ans2)
 
   # vjp wrt arg 0 of vjp
   ans1 = grad(scalar(logdet_vjp), 0)(scale, natparam)
@@ -223,7 +235,7 @@ if __name__ == '__main__':
   # vjp wrt arg 1 of vjp
   ans1 = grad(scalar(logdet_vjp), 1)(scale, natparam)
   _, ans2 = logdet_vjp_vjp(test, scale, natparam)
-  print np.allclose(ans1, ans2)
+  print np.allclose(resym(ans1), ans2)
 
   ### testing kalman primitives
   ## setup
@@ -243,22 +255,22 @@ if __name__ == '__main__':
   # vjp
   ans1 = grad(scalar1(partial_marginalize))(natparam)
   ans2 = partial_marginalize_vjp(test1, natparam)
-  print np.allclose(ans1, ans2)
+  print np.allclose(resym(ans1), ans2)
 
   # hvp
   ans1 = grad(scalar2(grad(scalar1(partial_marginalize))))(natparam)
   _, ans2 = partial_marginalize_vjp_vjp(test2, test1, natparam)
-  print np.allclose(ans1, ans2)
+  print np.allclose(resym(ans1), ans2)
 
   # vjp wrt arg 0 of vjp
   ans1 = grad(scalar2(partial_marginalize_vjp), 0)(test1, natparam)
   ans2, _ = partial_marginalize_vjp_vjp(test2, test1, natparam)
-  print np.allclose(ans1, ans2)
+  print np.allclose(resym(ans1), ans2)
 
   # vjp wrt arg 1 of vjp
   ans1 = grad(scalar2(partial_marginalize_vjp), 1)(test1, natparam)
   _, ans2 = partial_marginalize_vjp_vjp(test2, test1, natparam)
-  print np.allclose(ans1, ans2)
+  print np.allclose(resym(ans1), ans2)
 
   ### testing kalman filter, its vjp, and its vjp's vjp
   npr.seed(0)
@@ -273,9 +285,10 @@ if __name__ == '__main__':
   ans2 = dense_expectedstats(natparam)
   print np.allclose(ans1, ans2)
 
-  ans1 = grad(lambda x: np.sum(np.sin(grad(primitive_logZ)(x))))(natparam)
-  ans2 = grad(lambda x: np.sum(np.sin(grad(logZ)(x))))(natparam)
-  print np.allclose(ans1, ans2)
+  # NOTE: extra resym calls!
+  ans1 = grad(lambda x: np.sum(np.sin(resym(grad(primitive_logZ)(x)))))(natparam)
+  ans2 = grad(lambda x: np.sum(np.sin(resym(grad(logZ)(x)))))(natparam)
+  print np.allclose(resym(ans1), resym(ans2))
 
   ### sampling
   npr.seed(0)

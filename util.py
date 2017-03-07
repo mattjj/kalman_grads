@@ -6,6 +6,8 @@ T = lambda X: np.swapaxes(X, -1, -2)
 get_n = lambda natparam: (natparam.shape[-1] - 1) // 2
 _unpack = lambda n, X: (X[..., :n, :n], 1./2*(X[..., :n, n:] + T(X[..., n:, :n])), X[..., n:, n:])
 unpack = lambda X: _unpack(get_n(X), X)
+_unpack_asym = lambda n, X: (X[..., :n, :n], X[..., :n, n:], X[..., n:, n:])
+unpack_asym = lambda X: _unpack(get_n(X), X)
 sym = lambda X: 1./2 * (X + T(X))
 
 hs = lambda *args: np.concatenate(*args, axis=-1)
