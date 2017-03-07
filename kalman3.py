@@ -149,8 +149,6 @@ kalman_filter_vjp.defvjp(lambda g, ans, vs, gvs, args: kalman_filter_vjp_vjp(g, 
 
 ### sampling
 
-# TODO write this with an explicit call to kalman_filter_vjp, which will
-# hopefully handle broadcasting
 def natural_sample(natparam, npr=npr.RandomState(0)):
   n = get_n(natparam)
   def helper(natparam):
@@ -160,9 +158,6 @@ def natural_sample(natparam, npr=npr.RandomState(0)):
     eps = np.linalg.solve(L, npr.normal(size=natparam.shape[:-2] + (n, 1)))
     return logZ + np.dot(np.ravel(h), np.ravel(eps))
   return grad(helper)(natparam)[..., :n, -1]
-
-# def natural_sample2(natparam, npr=npr.RandomState(0)):
-#   kalman_filter_vjp(1., eps, 
 
 
 if __name__ == '__main__':
@@ -299,12 +294,3 @@ if __name__ == '__main__':
 
   ans1 = natural_sample(natparam, npr=npr.RandomState(0))
   ans2 = kalman_filter_vjp(
-
-
-# NOTES:
-# - some of this code probably assumes incoming grads are symmetric
-# - could save these from forward pass:
-#     - A^{-1} (or L = chol(A) if we only want to do solves)
-#     - A^{-1} B
-#   basically compute all that stuff up front, then everything else is matmuls
-#   and adds
