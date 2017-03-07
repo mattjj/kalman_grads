@@ -1,8 +1,8 @@
 from __future__ import division
-import numpy as np
-import numpy.random as npr
+import autograd.numpy as np
+import autograd.numpy.random as npr
 
-from util import T, vs, hs, get_n, rand_psd, unpack
+from util import T, vs, hs, get_n, rand_psd, unpack, sym
 from kalman import expectedstats, node_to_pair
 
 ### testing util
@@ -63,7 +63,8 @@ def dense_expectedstats(natparam):
 
 def cond_sample(natparam, eps, x2_sample):
   n = get_n(natparam)
-  J11, J12, h1 = -2*natparam[..., :n, :n], -2*natparam[..., :n, n:2*n], 2*natparam[..., :n, -1:]
+  J11, J12 = -2*sym(natparam[..., :n, :n]), -(natparam[..., :n, n:2*n] + natparam[..., n:2*n, :n].T)
+  h1 = natparam[..., :n, -1:] + natparam[..., -1:, :n].T
   L = np.linalg.cholesky(J11)
   return np.linalg.solve(J11, h1 + np.matmul(L, eps) - np.matmul(J12, x2_sample))
 
@@ -71,7 +72,7 @@ def sample_backward(filter_natparam, num_samples=None, npr=npr.RandomState(0)):
   T, n = filter_natparam.shape[-3], get_n(filter_natparam)
   leading_dims = filter_natparam.shape[:-3] + (() if num_samples is None else (num_samples,))
   eps = npr.normal(size=leading_dims + (T, n, 1))
-  samples = [eps[..., -1, :, :]]  # placeholder
+  samples = [np.zeros_like(eps[..., -1, :, :])]  # placeholder
   for t in xrange(T-1, -1, -1):
     samples.append(cond_sample(filter_natparam[..., t, :, :], eps[..., t, :, :], samples[-1]))
   return np.stack(samples[1:][::-1], axis=-3)[..., -1]

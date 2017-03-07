@@ -2,7 +2,7 @@ from __future__ import division
 import autograd.numpy as np
 import autograd.numpy.random as npr
 from autograd import grad
-from autograd.core import primitive
+from autograd.core import primitive, getval
 from autograd.container_types import make_tuple
 
 # This file is like kalman.py except we mark some things as primitives.
@@ -156,10 +156,13 @@ def natural_sample(natparam, npr=npr.RandomState(0)):
   def helper(natparam):
     logZ, filter_natparam = kalman_filter(natparam)
     h = filter_natparam[..., :n, -1] + filter_natparam[..., -1, :n]
-    L = T(np.linalg.cholesky(-2.*filter_natparam[..., :n, :n]))
+    L = T(np.linalg.cholesky(-2.*filter_natparam[..., :n, :n]))  # TODO this could come out of kalman_filter
     eps = np.linalg.solve(L, npr.normal(size=natparam.shape[:-2] + (n, 1)))
     return logZ + np.dot(np.ravel(h), np.ravel(eps))
   return grad(helper)(natparam)[..., :n, -1]
+
+# def natural_sample2(natparam, npr=npr.RandomState(0)):
+#   kalman_filter_vjp(1., eps, 
 
 
 if __name__ == '__main__':
@@ -287,6 +290,16 @@ if __name__ == '__main__':
   ans1 = natural_sample(natparam, npr=npr.RandomState(0))
   ans2 = np.squeeze(sample_backward(kalman_filter(natparam)[1], npr=npr.RandomState(0)))
   print np.allclose(ans1, ans2)
+
+  to_scalar = lambda x: np.sum(np.sin(x))
+  ans1 = grad(lambda natparam: to_scalar(natural_sample(natparam, npr=npr.RandomState(0))))(natparam)
+  ans2 = grad(lambda natparam: to_scalar(np.squeeze(sample_backward(
+      kalman_filter(natparam)[1], npr=npr.RandomState(0)))))(natparam)
+  print np.allclose(ans1, ans2)
+
+  ans1 = natural_sample(natparam, npr=npr.RandomState(0))
+  ans2 = kalman_filter_vjp(
+
 
 # NOTES:
 # - some of this code probably assumes incoming grads are symmetric
