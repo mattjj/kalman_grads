@@ -291,6 +291,3 @@ if __name__ == '__main__':
   ans2 = grad(lambda natparam: to_scalar(np.squeeze(sample_backward(
       kalman_filter(natparam)[1], npr=npr.RandomState(0)))))(natparam)
   print np.allclose(ans1, ans2)
-
-  ans1 = natural_sample(natparam, npr=npr.RandomState(0))
-  ans2 = kalman_filter_vjp(
