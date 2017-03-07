@@ -8,7 +8,8 @@ from autograd.container_types import make_tuple
 # This file is like kalman.py except we mark some things as primitives and
 # implement more vjp's manually.
 
-from util import T, get_n, unpack, unpack_asym, bottom_right_indicator, sym, vs
+from util import T, get_n, unpack, unpack_asym, sym, vs, hs, \
+    bottom_right_indicator
 from test import rand_natparam, dense_expectedstats, \
     rand_pair_potential, rand_node_potential, rand_psd, sample_backward
 from kalman import logZ, expectedstats
@@ -126,8 +127,8 @@ def kalman_filter(natparam):
 def kalman_filter_vjp(args):
   (g_logZ, g_filter_natparam), (_, filter_natparam) = args
   T, n = filter_natparam.shape[-3], get_n(filter_natparam)
-  g_natparam = np.zeros_like(filter_natparam)
-  g_prediction_potential = np.zeros(filter_natparam.shape[:-3] + (T+1, n+1, n+1))
+  g_natparam = np.zeros_like(g_filter_natparam)
+  g_prediction_potential = np.zeros(g_filter_natparam.shape[:-3] + (T+1, n+1, n+1))
   g_prediction_potential[..., -1, -1, -1] = g_logZ
   for t in xrange(g_natparam.shape[-3] - 1, -1, -1):
     g_prediction_potential[..., t, :, :], g_natparam[..., t, :, :] = \
@@ -170,6 +171,18 @@ def natural_sample(natparam, npr=npr.RandomState(0)):
     eps = np.linalg.solve(L, npr.normal(size=natparam.shape[:-2] + (n, 1)))
     return logZ + np.sum(np.matmul(T(h), eps))
   return grad(helper)(natparam)[..., :n, -1]
+
+def natural_sample2(natparam, num_samples=None, npr=npr.RandomState(0)):
+  n = get_n(natparam)
+  sample_shape = () if num_samples is None else (num_samples,)
+  noise_shape = natparam.shape[:-3] + sample_shape + (natparam.shape[-3], n, 1)
+  logZ, filter_natparam = kalman_filter(natparam)
+  L = T(np.linalg.cholesky(-2.*filter_natparam[..., :n, :n]))
+  eps = np.linalg.solve(L, npr.normal(size=noise_shape))
+  packed_eps = vs(( hs(( np.zeros(eps.shape[:-2] + (n, n)), eps,    )),
+                    hs(( T(eps), np.zeros(eps.shape[:-2] + (1, 1)), )), ))
+  result = kalman_filter_vjp(((1., node_to_pair(packed_eps)), (logZ, filter_natparam)))[0]
+  return result[..., :n, -1]
 
 ### test script
 
@@ -299,10 +312,20 @@ if __name__ == '__main__':
   ans1 = natural_sample(natparam, npr=npr.RandomState(0))
   ans2 = sample_backward(kalman_filter(natparam)[1], npr=npr.RandomState(0))
   print np.allclose(ans1, ans2)
-  print ans1.shape == ans2.shape
 
-  # to_scalar = lambda x: np.sum(np.sin(x))
-  # ans1 = grad(lambda natparam: to_scalar(natural_sample(natparam, npr=npr.RandomState(0))))(natparam)
-  # ans2 = grad(lambda natparam: to_scalar(np.squeeze(sample_backward(
-  #     kalman_filter(natparam)[1], npr=npr.RandomState(0)))))(natparam)
-  # print np.allclose(ans1, ans2)
+  to_scalar = lambda x: np.sum(np.sin(x))
+  ans1 = grad(lambda natparam: to_scalar(natural_sample(natparam, npr=npr.RandomState(0))))(natparam)
+  ans2 = grad(lambda natparam: to_scalar(np.squeeze(sample_backward(
+      kalman_filter(natparam)[1], npr=npr.RandomState(0)))))(natparam)
+  print np.allclose(ans1, ans2)
+
+  # with broadcasting
+
+  ans1 = natural_sample2(natparam, npr=npr.RandomState(0))
+  ans2 = sample_backward(kalman_filter(natparam)[1], npr=npr.RandomState(0))
+  print np.allclose(ans1, ans2)
+
+  ans1 = natural_sample2(natparam, num_samples=3, npr=npr.RandomState(0))
+  ans2 = sample_backward(kalman_filter(natparam)[1], num_samples=3, npr=npr.RandomState(0))
+  print ans1.shape == ans2.shape
+  print np.allclose(ans1, ans2)
