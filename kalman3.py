@@ -34,8 +34,8 @@ def schur_complement_vjp(Dbar, natparam):
   n = get_n(natparam)
   A, B, C = unpack(natparam)
   X = np.linalg.solve(sym(A), B)
-  I = np.reshape(np.eye(n+1), X.shape[:-2] + (n+1, n+1))
-  XI = vs(( X, -I ))
+  negI = (-np.ones(X.shape[:-2] + (1, 1))) * np.eye(n+1)
+  XI = vs(( X, negI ))
   return np.matmul(XI, np.matmul(Dbar, T(XI)))
 
 def schur_complement_vjp_vjp(Ebar, Dbar, natparam):
@@ -43,8 +43,8 @@ def schur_complement_vjp_vjp(Ebar, Dbar, natparam):
   A, B, C = unpack(natparam)
   Ainv = np.linalg.inv(sym(A))
   X = np.matmul(Ainv, B)
-  I = np.reshape(np.eye(n+1), X.shape[:-2] + (n+1, n+1))
-  XI = vs(( X, -I ))
+  negI = (-np.ones(X.shape[:-2] + (1, 1))) * np.eye(n+1)
+  XI = vs(( X, negI ))
   I0 = vs(( np.eye(n), np.zeros((n+1, n)) ))
   Xbar = np.matmul(np.matmul(Ebar[..., :n, :], XI), T(Dbar)) \
       + np.matmul(np.matmul(T(Ebar[..., :, :n]), XI), Dbar)
@@ -61,7 +61,7 @@ def logdet_vjp(g, A):
 def logdet_vjp_vjp(h, g, A):
   Ainv = np.linalg.inv(A)
   n = A.shape[-1]
-  gg = np.sum(Ainv * h, (-1, -2))
+  gg = np.sum(Ainv * h, (-1, -2), keepdims=True)
   gA = -g * np.matmul(Ainv, np.matmul(h, Ainv))
   return gg, gA
 
@@ -161,16 +161,19 @@ kalman_filter_vjp.defvjp(lambda g, ans, vs, gvs, args: kalman_filter_vjp_vjp(g, 
 
 ### sampling
 
-def natural_sample(natparam, npr=npr.RandomState(0)):
+def natural_sample(natparam, num_samples=None, npr=npr.RandomState(0)):
   n = get_n(natparam)
+  sample_shape = (1,) if num_samples is None else (num_samples,)
+  sample_indices = 0 if num_samples is None else slice(None)
   def helper(natparam):
     logZ, filter_natparam = kalman_filter(natparam)
-    h = filter_natparam[..., :n, -1] + filter_natparam[..., -1, :n]
+    h = filter_natparam[..., :n, -1:] + T(filter_natparam[..., -1:, :n])
     L = T(np.linalg.cholesky(-2.*filter_natparam[..., :n, :n]))  # TODO this could come out of kalman_filter
-    eps = np.linalg.solve(L, npr.normal(size=natparam.shape[:-2] + (n, 1)))
-    return logZ + np.dot(np.ravel(h), np.ravel(eps))
-  return grad(helper)(natparam)[..., :n, -1]
+    eps = np.linalg.solve(L, npr.normal(size=sample_shape + natparam.shape[1:-2] + (n, 1)))
+    return logZ + np.sum(np.matmul(T(h), eps))
+  return grad(helper)(natparam[None, ...])[sample_indices, ..., :n, -1]
 
+### test script
 
 if __name__ == '__main__':
   ### testing numerical util and vjp functions
@@ -296,11 +299,12 @@ if __name__ == '__main__':
   natparam = rand_natparam(10, n)
 
   ans1 = natural_sample(natparam, npr=npr.RandomState(0))
-  ans2 = np.squeeze(sample_backward(kalman_filter(natparam)[1], npr=npr.RandomState(0)))
+  ans2 = sample_backward(kalman_filter(natparam)[1], npr=npr.RandomState(0))
   print np.allclose(ans1, ans2)
+  print ans1.shape == ans2.shape
 
-  to_scalar = lambda x: np.sum(np.sin(x))
-  ans1 = grad(lambda natparam: to_scalar(natural_sample(natparam, npr=npr.RandomState(0))))(natparam)
-  ans2 = grad(lambda natparam: to_scalar(np.squeeze(sample_backward(
-      kalman_filter(natparam)[1], npr=npr.RandomState(0)))))(natparam)
-  print np.allclose(ans1, ans2)
+  # to_scalar = lambda x: np.sum(np.sin(x))
+  # ans1 = grad(lambda natparam: to_scalar(natural_sample(natparam, npr=npr.RandomState(0))))(natparam)
+  # ans2 = grad(lambda natparam: to_scalar(np.squeeze(sample_backward(
+  #     kalman_filter(natparam)[1], npr=npr.RandomState(0)))))(natparam)
+  # print np.allclose(ans1, ans2)

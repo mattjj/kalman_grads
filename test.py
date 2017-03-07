@@ -63,8 +63,8 @@ def dense_expectedstats(natparam):
 
 def cond_sample(natparam, eps, x2_sample):
   n = get_n(natparam)
-  J11, J12 = -2*sym(natparam[..., :n, :n]), -(natparam[..., :n, n:2*n] + natparam[..., n:2*n, :n].T)
-  h1 = natparam[..., :n, -1:] + natparam[..., -1:, :n].T
+  J11, J12 = -2*sym(natparam[..., :n, :n]), -(natparam[..., :n, n:2*n] + T(natparam[..., n:2*n, :n]))
+  h1 = natparam[..., :n, -1:] + T(natparam[..., -1:, :n])
   L = np.linalg.cholesky(J11)
   return np.linalg.solve(J11, h1 + np.matmul(L, eps) - np.matmul(J12, x2_sample))
 

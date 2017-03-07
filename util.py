@@ -12,7 +12,7 @@ sym = lambda X: 1./2 * (X + T(X))
 
 hs = lambda *args: np.concatenate(*args, axis=-1)
 vs = lambda *args: np.concatenate(*args, axis=-2)
-square = lambda X: np.dot(X, X.T)
+square = lambda X: np.dot(X, T(X))
 rand_psd = lambda n: square(npr.randn(n, n))
 
 def bottom_right_indicator(n):
