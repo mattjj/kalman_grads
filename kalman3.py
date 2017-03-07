@@ -161,17 +161,15 @@ kalman_filter_vjp.defvjp(lambda g, ans, vs, gvs, args: kalman_filter_vjp_vjp(g, 
 
 ### sampling
 
-def natural_sample(natparam, num_samples=None, npr=npr.RandomState(0)):
+def natural_sample(natparam, npr=npr.RandomState(0)):
   n = get_n(natparam)
-  sample_shape = (1,) if num_samples is None else (num_samples,)
-  sample_indices = 0 if num_samples is None else slice(None)
   def helper(natparam):
     logZ, filter_natparam = kalman_filter(natparam)
     h = filter_natparam[..., :n, -1:] + T(filter_natparam[..., -1:, :n])
     L = T(np.linalg.cholesky(-2.*filter_natparam[..., :n, :n]))  # TODO this could come out of kalman_filter
-    eps = np.linalg.solve(L, npr.normal(size=sample_shape + natparam.shape[1:-2] + (n, 1)))
+    eps = np.linalg.solve(L, npr.normal(size=natparam.shape[:-2] + (n, 1)))
     return logZ + np.sum(np.matmul(T(h), eps))
-  return grad(helper)(natparam[None, ...])[sample_indices, ..., :n, -1]
+  return grad(helper)(natparam)[..., :n, -1]
 
 ### test script
 
