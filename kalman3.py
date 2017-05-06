@@ -162,6 +162,10 @@ kalman_filter_vjp.defvjp(lambda g, ans, vs, gvs, args: kalman_filter_vjp_vjp(g, 
 
 ### sampling
 
+# TODO write this with an explicit call to kalman_filter_vjp, which will
+# hopefully handle broadcasting
+# TODO pass out L so we don't have to compute it again here (is that premature
+# optimization? make svae.py work with kalman.py first)
 def natural_sample(natparam, npr=npr.RandomState(0)):
   n = get_n(natparam)
   def helper(natparam):
@@ -329,3 +333,15 @@ if __name__ == '__main__':
   ans2 = sample_backward(kalman_filter(natparam)[1], num_samples=3, npr=npr.RandomState(0))
   print ans1.shape == ans2.shape
   print np.allclose(ans1, ans2)
+
+# NOTES:
+# - some of this code probably assumes incoming grads are symmetric
+# - could save these from forward pass:
+#     - A^{-1} (or L = chol(A) if we only want to do solves)
+#     - A^{-1} B
+#   basically compute all that stuff up front, then everything else is matmuls
+#   and adds
+
+
+# TODO add L as output, handle it in vjp. then we can be fast *and* handle
+# sampling
